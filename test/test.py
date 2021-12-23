@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from src.note_frequency_gaps import *
+from src.waveforms import *
 
 
 class NoteToFrequencyTestCase(TestCase):
@@ -25,3 +25,9 @@ class WaveFormTestCase(TestCase):
         saw = SawWave('A4')
         square = SquareWave('A4')
         self.assertTrue(set(saw) > set(square))
+
+    def test_cannot_create_waveform_from_invalid_note_name(self):
+        for W in (SineWave, SquareWave, TriangleWave, SawWave):
+            with self.assertRaises(ValueError):
+                W(note='not a real note name')
+

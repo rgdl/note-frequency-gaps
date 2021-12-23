@@ -1,1 +1,7 @@
 *.swp
+
+# Test coverage results
+htmlcov
+.coverage
+
+__pycache__

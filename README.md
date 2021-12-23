@@ -7,15 +7,27 @@ If we know a certain collection of notes is present in an arrangement, we can su
 
 ## Command Line Usage
 Either enharmonic spelling of "black keys" is allowed (although B# won't be interpreted as C and the like)
+
 ```sh
 src/note_frequency_gaps.py C4 Eb4 G4
-```
-Or:
-```sh
-src/note_frequency_gaps.py C4 D#4 G4
+
+# Or:
+
+src/note_frequency_gaps.py C4 'D#4' G4  # Note quoting of note name containing "#"
 ```
 
-## Running Tests
+## Running Tests With Coverage Check
+
 ```sh
-python -m unittest discover test
+coverage run -m unittest discover test && coverage report -m
+```
+
+View coverage results:
+
+```sh
+coverage report -m 
+
+# Or:
+
+coverage html && open htmlcov/index.html
 ```

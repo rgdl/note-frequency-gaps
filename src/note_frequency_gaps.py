@@ -1,114 +1,104 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python
 
 """
 Code to find gaps in the frequency spectrum of a given collection of notes.
 
-Notes may be assumed to be sine, triangle, square, or sawtooth waves.
+Notes can be modelled by sine, triangle, square, or sawtooth waves.
 """
 
-import abc
-from collections import OrderedDict
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional
 
-_LOOKUP_PATH = Path(__file__).parent.resolve() / 'note_lookup.csv'
-_NOTE_2_FREQ_MAP = OrderedDict()
-with open(_LOOKUP_PATH, 'r') as f:
-    for i, line in enumerate(f):
-        if i == 0:
-            continue
-        name, freq = line.strip().split(',')
-        # Treat the sharp and flat spelling of a "black key" as 2 different notes
-        all_names = name.split('/')
-        for name in all_names:
-            _NOTE_2_FREQ_MAP[name] = float(freq)
+import matplotlib.pyplot as plt
 
-MAX_FREQUENCY = 20000
-
-note_name_to_frequency = _NOTE_2_FREQ_MAP.get
+from waveforms import MIN_FREQUENCY
+from waveforms import MAX_FREQUENCY
+from waveforms import SawWave
+from waveforms import SineWave
+from waveforms import SquareWave
+from waveforms import TriangleWave
 
 
 @dataclass
-class SpectrumComponent:
-    frequency: float
-    amplitude: float = 1.0
-    # `note_name` is `None` for frequencies that aren't "in tune"
-    note_name: Optional[str] = None
+class SpectrumBin:
+    bottom: float  # Inclusive
+    top: float  # Exclusive
+    magnitude: float = 0
 
-    def closest_note(self) -> str:
-        if self.note_name is not None:
-            return self.note_name
-
-        previous_distance = float('inf')
-        previous_name = ''
-
-        for name, freq in _NOTE_2_FREQ_MAP.items():
-            current_distance = abs(freq - self.frequency)
-            if current_distance > previous_distance:
-                break
-            previous_distance = current_distance
-            previous_name = name
-
-        return previous_name
-
-    def __hash__(self):
-        return 0
-
-
-class WaveForm(abc.ABC):
-    def __init__(self, note):
-        self.note = note
-
-    def __iter__(self):
-        partials = self.partials
-        return iter(partials)
+    def contains(self, freq):
+        return self.bottom <= freq < self.top
 
     @property
-    @abc.abstractmethod
-    def partials(self):
-        pass
-
-    def _get_partials(self, note, ignore_even, amplitude_func):
-        p = []
-        n = 0
-        while True:
-            n += 1
-            if (n % 2 == 0) and ignore_even:
-                continue    
-            frequency = note_name_to_frequency(note) * n
-            if frequency > MAX_FREQUENCY:
-                break
-            p.append(SpectrumComponent(frequency, amplitude_func(n)))
-        return p
+    def width(self):
+        return self.top - self.bottom
 
 
-class SawWave(WaveForm):
-    @property
-    def partials(self):
-        return self._get_partials(
-            self.note,
-            ignore_even=False,
-            amplitude_func=(lambda n: 1 / n),
-        )
+def bar_graph(bins):
+    plt.bar(
+        [b.bottom for b in bins],
+        [b.magnitude for b in bins],
+        width=[b.width for b in bins],
+        align='edge',
+        color='blue',
+        edgecolor='black',
+    )
+    plt.xscale('log')
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Magnitude')
+    plt.show()
 
 
-class SquareWave(WaveForm):
-    @property
-    def partials(self):
-        return self._get_partials(
-            self.note,
-            ignore_even=True,
-            amplitude_func=(lambda n: 1 / n),
-        )
+def main(note_names, waveform_class, n_bins=100):
+    """
+    Build a WaveForm off of each of notes, construct a distribution, binned to closest notes, of all partials, show that and the biggest gaps
+    """
+    waves = [waveform_class(n) for n in note_names]
+
+    # Binned sum over all SpectrumComponents
+    bin_size = (MAX_FREQUENCY / MIN_FREQUENCY) ** (1 / n_bins)
+    bin_cutoffs = [MIN_FREQUENCY]
+    while True:
+        next_cutoff = bin_cutoffs[-1] * bin_size
+        if next_cutoff > MAX_FREQUENCY:
+            break
+        bin_cutoffs.append(next_cutoff)
+    bin_cutoffs.append(MAX_FREQUENCY)
+
+    bins = [
+        SpectrumBin(lower, upper)
+        for lower, upper in zip(bin_cutoffs, bin_cutoffs[1:])
+    ]
+
+    for wave in waves:
+        for partial in wave.partials:
+            for bin_ in bins:
+                if bin_.contains(partial.frequency):
+                    bin_.magnitude += partial.amplitude
+                    break
+    bar_graph([b for b in bins if b.magnitude > 0])
 
 
-class TriangleWave(WaveForm):
-    @property
-    def partials(self):
-        return self._get_partials(
-            self.note,
-            ignore_even=True,
-            amplitude_func=(lambda n: 1 / n ** 2),
-        )
+if __name__ == '__main__':
+    import argparse
 
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        'note_names',
+        nargs='+',
+        help='names of notes whose spectra will be examined',
+    )
+    parser.add_argument(
+        '--waveform', '-w',
+        choices=('sine', 'square', 'triangle', 'saw'),
+        default='saw',
+        help='waveform that will be used to model notes (defaults to saw)',
+    )
+    args = parser.parse_args()
+
+    waveform_class = {
+        'sine': SineWave,
+        'square': SquareWave,
+        'triangle': TriangleWave,
+        'saw': SawWave,
+    }[args.waveform]
+
+    main(args.note_names, waveform_class)
