@@ -44,10 +44,11 @@ def bar_graph(bins):
     plt.xscale('log')
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Magnitude')
+    plt.xlim(20, 20000)
     plt.show()
 
 
-def main(note_names, waveform_class, n_bins=100):
+def main(note_names, waveform_class, n_bins=200):
     """
     Build a WaveForm off of each of notes, construct a distribution, binned to closest notes, of all partials, show that and the biggest gaps
     """

@@ -26,6 +26,11 @@ class WaveFormTestCase(TestCase):
         square = SquareWave('A4')
         self.assertTrue(set(saw) > set(square))
 
+    def test_saw_wave_contains_all_freqs_found_in_itself_an_octave_higher(self):
+        lower_octave_freqs = set(p.frequency for p in SawWave('A4').partials)
+        upper_octave_freqs = set(p.frequency for p in SawWave('A5').partials)
+        self.assertGreater(lower_octave_freqs, upper_octave_freqs)
+
     def test_cannot_create_waveform_from_invalid_note_name(self):
         for W in (SineWave, SquareWave, TriangleWave, SawWave):
             with self.assertRaises(ValueError):
