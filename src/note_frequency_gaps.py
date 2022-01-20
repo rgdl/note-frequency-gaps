@@ -85,7 +85,7 @@ if __name__ == '__main__':
     parser.add_argument(
         'note_names',
         nargs='+',
-        help='names of notes whose spectra will be examined',
+        help='names of notes whose spectra will be examined (e.g. C4, D#5, Eb6)',
     )
     parser.add_argument(
         '--waveform', '-w',
